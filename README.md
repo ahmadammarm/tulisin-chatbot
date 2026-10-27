@@ -175,32 +175,57 @@ To run the add-in inside Word Desktop during local development:
 
 ```text
 tulisin-chatbot/
-|-- public/assets/            # Add-in icons
-|-- scripts/dev-https.mjs     # HTTPS dev server using Office dev certificates
+|-- public/assets/                # Add-in icons
+|-- scripts/dev-https.mjs         # HTTPS dev server using Office dev certificates
 |-- src/
-|   |-- app/
-|   |   |-- api/assist/       # POST route: validates input, streams Gemini output
-|   |   |-- layout.tsx        # Root shell; loads Office.js before hydration
-|   |   `-- page.tsx          # Renders the task pane
-|   |-- components/
-|   |   |-- task-pane/        # Task pane UI (selection, directives, revision, status)
-|   |   `-- ui/               # shadcn/ui primitives
-|   |-- config/env.ts         # Zod-validated server environment variables
-|   |-- constants/strings.ts  # All Indonesian UI copy
-|   |-- features/
-|   |   |-- assist/           # Request schema, prompts, streaming client, state machine
-|   |   |-- diff/             # Word-level diff computation and view
-|   |   |-- directives/       # One-click action registry (add actions here)
-|   |   `-- document/         # DocumentAdapter: Office.js and in-memory implementations
-|   |-- lib/                  # Typed errors and shared helpers
-|   |-- server/               # Server-only Gemini client and revision streaming
-|   `-- test/                 # Test doubles
-|-- manifest.xml              # Microsoft Office Add-in manifest
-|-- package.json              # Project dependencies and scripts
-|-- pnpm-lock.yaml            # pnpm lockfile
-|-- tsconfig.json             # TypeScript configuration
-`-- README.md                 # Project documentation
+|   |-- app/                      # Next.js routes only: layout, page, api/assist/route.ts
+|   |-- components/ui/            # shadcn/ui primitives (generated, do not edit by hand)
+|   |-- features/                 # Feature code, one folder per feature
+|   |   |-- assist/
+|   |   |   |-- api/              # Client fetch wrapper for /api/assist
+|   |   |   |-- components/       # RevisionPanel
+|   |   |   |-- hooks/            # useAssist
+|   |   |   |-- model/            # Schema, prompts, reducer, output sanitizing
+|   |   |   `-- server/           # Gemini revision streaming (server-only)
+|   |   |-- directives/           # Action registry (model/) and its chips (components/)
+|   |   |-- document/             # Office.js and mock adapters, selection hooks and card
+|   |   `-- task-pane/            # Composes the features into the task pane
+|   |-- lib/                      # Generic, feature-agnostic modules (import via barrel)
+|   |   |-- config/               # Zod-validated server env (server-only)
+|   |   |-- diff/                 # Word-level diff and change summary
+|   |   |-- errors/               # AppError, error codes, toAppError
+|   |   |-- gemini/               # Gemini client (server-only) and its test-facing type
+|   |   |-- text/                 # Whitespace and word helpers
+|   |   `-- ui/                   # cn() class merging
+|   `-- shared/                   # App-specific code shared across features
+|       |-- components/           # DiffView, StatusBanner
+|       |-- constants/            # strings.ts: all Indonesian UI copy
+|       `-- types/                # Cross-feature types (selection, status)
+|-- tests/
+|   |-- helpers/                  # Test doubles (fake Gemini, server-only stub)
+|   |-- integration/              # API route and Gemini streaming
+|   `-- unit/                     # Pure logic: prompts, reducer, diff, text, adapters
+|-- manifest.xml                  # Microsoft Office Add-in manifest
+`-- vitest.config.mts             # Test runner config
 ```
+
+### Where new code goes
+
+| Code | Location |
+|---|---|
+| Generic helper with no app knowledge | `src/lib/<module>/`, exported from its `index.ts` |
+| Code used by more than one feature | `src/shared/` (`components/`, `constants/`, `types/`) |
+| Code for one feature | `src/features/<feature>/` in `api/`, `components/`, `hooks/`, `model/`, or `server/` |
+| A new one-click action | One entry in `src/features/directives/model/directives.ts` plus its icon |
+| UI text | `src/shared/constants/strings.ts` |
+| Tests | `tests/unit/` or `tests/integration/`, named `<subject>.test.ts`; helpers in `tests/helpers/` |
+
+### Import rules (enforced by ESLint)
+
+- Use the `@/` alias for `src/` and `@tests/` for `tests/`. Relative imports are only for files in the same folder.
+- Import lib modules through their barrel (`@/lib/text`), never a file inside them (`@/lib/text/words`).
+- Client code (`components/`, `hooks/`, `features/*/api/`) must not import server-only modules (`@/lib/gemini`, `@/lib/config`, `features/*/server/`).
+- `any` and `unknown` are banned. External data goes through a Zod schema; caught errors go through `toAppError` (the only file allowed to use `unknown`).
 
 ---
 

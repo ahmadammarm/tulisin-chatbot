@@ -12,6 +12,16 @@ const typeCheckedPresets = [
   .filter((preset) => preset.rules !== undefined)
   .map(({ name, rules }) => ({ name, rules, files: ["**/*.{ts,tsx}"] }));
 
+const LIB_BARREL_ONLY = {
+  group: ["@/lib/*/*"],
+  message: "Import lib modules through their barrel, e.g. `@/lib/text`.",
+};
+
+const SERVER_ONLY_MODULES = {
+  group: ["@/lib/gemini", "@/lib/config", "@/features/*/server/*"],
+  message: "Server-only module: client code must call the API route instead.",
+};
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -41,12 +51,27 @@ const eslintConfig = defineConfig([
     },
   },
   {
+    files: ["src/**/*.{ts,tsx}", "tests/**/*.ts"],
+    rules: { "no-restricted-imports": ["error", { patterns: [LIB_BARREL_ONLY] }] },
+  },
+  {
+    // Client code must never pull in server-only modules (API keys, Gemini SDK).
+    files: [
+      "src/**/components/**/*.tsx",
+      "src/**/hooks/**/*.ts",
+      "src/features/*/api/**/*.ts",
+    ],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [LIB_BARREL_ONLY, SERVER_ONLY_MODULES] }],
+    },
+  },
+  {
     // The single boundary where untyped values (caught errors) become typed.
-    files: ["src/lib/errors.ts"],
+    files: ["src/lib/errors/app-error.ts"],
     rules: { "no-restricted-syntax": "off" },
   },
   {
-    files: ["**/*.test.ts"],
+    files: ["tests/**/*.test.ts"],
     rules: { "@typescript-eslint/require-await": "off" },
   },
   // Override default ignores of eslint-config-next.

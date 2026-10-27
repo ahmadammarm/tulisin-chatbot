@@ -1,8 +1,8 @@
-import { getServerEnv } from "@/config/env";
-import { assistRequestSchema, type ApiError } from "@/features/assist/schema";
+import { getServerEnv } from "@/lib/config";
+import { assistRequestSchema, type ApiError } from "@/features/assist/model/schema";
 import type { AppErrorCode } from "@/lib/errors";
-import { streamRevision } from "@/server/assist/stream-revision";
-import { getGeminiClient } from "@/server/gemini/client";
+import { streamRevision } from "@/features/assist/server/stream-revision";
+import { getGeminiClient } from "@/lib/gemini";
 
 function errorResponse(code: AppErrorCode, status: number): Response {
   const body: ApiError = { error: { code } };
